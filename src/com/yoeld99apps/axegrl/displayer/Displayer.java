@@ -6,7 +6,6 @@ import java.awt.Color;
 import java.awt.Component;
 
 import java.awt.Graphics2D;
-import java.awt.Image;
 import java.awt.MenuItem;
 import java.awt.MenuShortcut;
 import java.awt.Point;
@@ -15,17 +14,26 @@ import java.awt.Rectangle;
 import java.awt.Shape;
 import java.awt.event.KeyEvent;
 import java.awt.event.MouseEvent;
-import java.io.File;
+
+import java.util.List;
 import java.util.ArrayList;
 import java.util.Iterator;
 import javax.swing.JColorChooser;
 import javax.swing.JDialog;
-import javax.swing.JFileChooser;
 import javax.swing.JOptionPane;
-import javax.swing.filechooser.FileFilter;
-import javax.swing.filechooser.FileNameExtensionFilter;
 
 public class Displayer extends DShape implements DElement {
+
+    public static int SELECT_ITEMS = Integer.parseInt("00000001", 2);
+    public static int CUSTOMIZE_ITEMS = Integer.parseInt("00000010", 2);
+    public static int CONFIG_ITEMS = Integer.parseInt("00000010", 2);
+    public static int MOVE_ITEMS = Integer.parseInt("00000100", 2);
+    public static int EDIT_ITEMS = Integer.parseInt("00001000", 2);
+    public static int ADD_ITEMS = Integer.parseInt("00010000", 2);
+    public static int DELETE_ITEMS = Integer.parseInt("00100000", 2);
+    public static int CONECT_ITEMS = Integer.parseInt("01000000", 2);
+    public static int GROUP_ITEMS = Integer.parseInt("01000000", 2);
+    public static int ALL_CONTROLLS = Integer.parseInt("11111111", 2);
 
     // avaliable mouse statuses
     private static final int NO_SELECTED_GROUP = 0xA6267000;
@@ -41,6 +49,7 @@ public class Displayer extends DShape implements DElement {
     private static final String GLOBAL_MENU_NAME = "GlobalMenu";
     private static final String ITEM_MENU_NAME = "ItemMenu";
     private static final String COMMAND_SELECT_ALL_SHAPES = "spSelctAll";
+    private static final String COMMAND_ADD_SHAPE = "addSp";
     private static final String COMMAND_RENAME_SHAPE = "spRenm";
     private static final String COMMAND_CUSTOMIZE_SHAPES_STYLES = "custmSpSts";
     private static final String COMMAND_SELECT_SHAPES_STYLE = "selSStl";
@@ -76,10 +85,6 @@ public class Displayer extends DShape implements DElement {
     private DShape pointedShape;
     private DConector pointedConector;
 
-    private final ShapePainter.Style disableShapeStyle;
-    private final ShapePainter.Style enableShapeStyle;
-    private final ShapePainter.Style selectedShapeStyle;
-
     private final ShapePainter.Style disableGroupStyle;
     private final ShapePainter.Style enableGroupStyle;
     private final ShapePainter.Style selectedGroupStyle;
@@ -94,16 +99,19 @@ public class Displayer extends DShape implements DElement {
     private final JDialog conectorStyleDialog;
 
     private int mouseState;
+    private int enabledControlsFlag;
     private final Point lastPoint;
     private final Point initialPoint;
 
     public Displayer() {
-        this(true);
+        this(ALL_CONTROLLS);
     }
 
-    public Displayer(boolean enableControls) {
+    public Displayer(int enabledControls) {
         super();
 
+        System.out.println(Integer.toString(enabledControls, 2)+"->"+Integer.toString(enabledControls & SELECT_ITEMS, 2));
+        
         // configure layout
         setBackground(Color.LIGHT_GRAY);
         setSize(700, 500);
@@ -114,14 +122,15 @@ public class Displayer extends DShape implements DElement {
 
         shapeStyles = new ArrayList<>();
         conectorStyles = new ArrayList<>();
-        temp = new ArrayList<>();
-        temp.add(this);
-
+        temp = new ArrayList<>(1);
+        temp.add(null);
+        
         globalGroup = new DShapeGroup();
         selectedGroup = globalGroup;
 
         // initializing mouse state control values
         mouseState = NO_SELECTED_GROUP;
+        enabledControlsFlag = enabledControls;
         lastPoint = new Point();
         initialPoint = new Point();
 
@@ -130,53 +139,27 @@ public class Displayer extends DShape implements DElement {
         selectionConectorStyleDialog = new DListSelectionDialog(conectorStyles);
         shapeStyleDialog = new DShapeStyleEditorDialog(shapeStyles);
         conectorStyleDialog = null;
-        
+
         // define default styles
         makeShapeStyles();
 
-        selectedShapeStyle = shapeStyles.get(0);
-        disableShapeStyle = shapeStyles.get(1);
-        enableShapeStyle = shapeStyles.get(2);
-        
         disableGroupStyle = new ShapePainter.Style(ShapePainter.Style.GEOMETRY_BOX, null, Color.GRAY, Color.GRAY, ShapePainter.Style.TEXT_OVER);
         enableGroupStyle = new ShapePainter.Style(ShapePainter.Style.GEOMETRY_BOX, null, Color.YELLOW, Color.YELLOW, ShapePainter.Style.TEXT_OVER);
         selectedGroupStyle = new ShapePainter.Style(ShapePainter.Style.GEOMETRY_BOX, Color.WHITE, Color.BLACK, Color.BLACK, ShapePainter.Style.TEXT_OVER);
-        
+
         disableConectorStyle = new ConectorPainter.Style(ConectorPainter.Style.POLYLINE, Color.GRAY, Color.decode("0x0000B2"));
         enableConectorStyle = new ConectorPainter.Style(ConectorPainter.Style.POLYLINE, Color.GREEN, Color.decode("0x005500"));
         selectedConectorStyle = new ConectorPainter.Style(ConectorPainter.Style.POLYLINE, Color.YELLOW, Color.decode("0x0AAF00"));
 
-         if (enableControls) {
-            makeGlobalMenu();
-            makeItemsMenu();
-            makeLinksMenu();
-        }
-         
-        // make preview nodes
-        int v = 0;
-        double nx, ny;
-
-        /*for (int i = 1; i <= 25; i++) {
-            DNode node = new DNode(i + "");
-
-            // make a node matrix
-            nx = (v % 10) * 0.1 + 0.05;
-            ny = (v / 10) * 0.1 + 0.05;
-            v += 2;
-
-            node.setEnableStyle(enableShapeStyle);
-            node.setDisableStyle(disableShapeStyle);
-            node.setSelectedStyle(selectedShapeStyle);
-
-            node.setSize(60, 60);
-            node.setRelativeCenter(nx, ny);
-            node.setRelativeSpace(x, y, width, height);
-
-            System.out.println("V: " + v + " X: " + nx + " Y: " + ny);
+        // enable options menus
+        if (enabledControls != 0) {
+            makeGlobalMenu(enabledControls);
+            makeItemsMenu(enabledControls);
+            makeLinksMenu(enabledControls);
             
-            addShape(node);
-        }*/
+        }
 
+        // initialize components
         initialize();
     }
 
@@ -190,55 +173,86 @@ public class Displayer extends DShape implements DElement {
         style.setBorderSize(1.2);
         shapeStyles.add(style);
         shapeStyleDialog.loockStyle(style);
-        
+
         // define default disable Style
         style = new ShapePainter.Style(ShapePainter.Style.GEOMETRY_QUAD, Color.WHITE, Color.decode("0x750000"), Color.RED, ShapePainter.Style.TEXT_CENTER);
         style.setName("disable");
         shapeStyles.add(style);
         shapeStyleDialog.loockStyle(style);
-        
+
         // define default enable Style
         style = new ShapePainter.Style(ShapePainter.Style.GEOMETRY_QUAD, Color.WHITE, Color.decode("0x005500"), Color.GREEN, ShapePainter.Style.TEXT_CENTER);
         style.setName("enable");
         style.setBorderSize(1.2);
         shapeStyles.add(style);
         shapeStyleDialog.loockStyle(style);
-        
+
     }
 
-    protected PopupMenu makeGlobalMenu() {
+    private PopupMenu makeGlobalMenu(int enabledControls) {
         makeMenu(GLOBAL_MENU_NAME);
+
+        if ((enabledControls & SELECT_ITEMS) != 0) {
+            addMenuItem(GLOBAL_MENU_NAME, "Select All", COMMAND_SELECT_ALL_SHAPES);
+        }
         
-        addMenuItem(GLOBAL_MENU_NAME, "Select All", COMMAND_SELECT_ALL_SHAPES).setShortcut(new MenuShortcut(KeyEvent.VK_A, true));
-        addMenuItem(GLOBAL_MENU_NAME, "Edit Shape Styles", COMMAND_CUSTOMIZE_SHAPES_STYLES).setShortcut(new MenuShortcut(KeyEvent.VK_Q, true));
+        if ((enabledControls & ADD_ITEMS) != 0) {
+            addMenuItem(GLOBAL_MENU_NAME, "New Item", COMMAND_ADD_SHAPE);
+        }
+        
+        if ((enabledControls & CUSTOMIZE_ITEMS) != 0) {
+            addMenuItem(GLOBAL_MENU_NAME, "Edit Shape Styles", COMMAND_CUSTOMIZE_SHAPES_STYLES).setShortcut(new MenuShortcut(KeyEvent.VK_Q, true));
+        }
+
         addMenuItem(GLOBAL_MENU_NAME, "Take Screenshot", COMMAND_TAKE_SCREENSHOT).setShortcut(new MenuShortcut(KeyEvent.VK_T, true));
-        
+
         // enable click's events listeners
         enableMenu(GLOBAL_MENU_NAME);
         enableEvents();
-        
+
         return getMenu(GLOBAL_MENU_NAME);
     }
 
-    protected PopupMenu makeItemsMenu() {
+    private PopupMenu makeItemsMenu(int enabledControls) {
         makeMenu(ITEM_MENU_NAME);
 
-        addMenuItem(ITEM_MENU_NAME, "Select All       \t(Ctrl+A)", COMMAND_SELECT_ALL_SHAPES);
-        addMenuItem(ITEM_MENU_NAME, "Rename           \t(Ctrl+R)", COMMAND_RENAME_SHAPE);
-        addMenuItem(ITEM_MENU_NAME, "Edit Shape Styles\t(Ctrl+Q)", COMMAND_CUSTOMIZE_SHAPES_STYLES);
-        addMenuItem(ITEM_MENU_NAME, "Customize       ", COMMAND_SELECT_SHAPES_STYLE);
+        if ((enabledControls & SELECT_ITEMS) != 0) {
+            addMenuItem(ITEM_MENU_NAME, "Select All", COMMAND_SELECT_ALL_SHAPES);
+        }
 
-        addSubmenu(ITEM_MENU_NAME, "StateSubMenu", "Edit State");
-        addMenuItem("StateSubMenu", "Enable          (Ctrl+E)", COMMAND_ENABLE_SELECTION);
-        addMenuItem("StateSubMenu", "Disable         (Ctrl+D)", COMMAND_DISABLE_SELECTION);
+        if ((enabledControls & CONFIG_ITEMS) != 0) {
+            addMenuItem(ITEM_MENU_NAME, "Rename", COMMAND_RENAME_SHAPE);
+        }
 
-        addMenuItem(ITEM_MENU_NAME, "LINE", COMMAND_LINK_SHAPES);
-        addMenuItem(ITEM_MENU_NAME, "POLYLINE", COMMAND_LOOP_LINK_SHAPES);
-        addMenuItem(ITEM_MENU_NAME, "LINE", COMMAND_STAR_LINK_SHAPES);
-        addMenuItem(ITEM_MENU_NAME, "Un-Link         (Ctrl+U)", COMMAND_UNLINK_SHAPES);
-        addMenuItem(ITEM_MENU_NAME, "Delete          (Ctrl+X)", COMMAND_DELETE_SHAPES);
-        addMenuItem(ITEM_MENU_NAME, "Fix Group       (Alt+G)", COMMAND_FIX_GROUP);
-        addMenuItem(ITEM_MENU_NAME, "Take Screenshot (Alt+S)", COMMAND_TAKE_SCREENSHOT);
+        if ((enabledControls & CUSTOMIZE_ITEMS) != 0) {
+            addMenuItem(ITEM_MENU_NAME, "Edit Shape Styles", COMMAND_CUSTOMIZE_SHAPES_STYLES);
+            addMenuItem(ITEM_MENU_NAME, "Customize", COMMAND_SELECT_SHAPES_STYLE);
+        }
+
+        if ((enabledControls & CONFIG_ITEMS) != 0) {
+            addSubmenu(ITEM_MENU_NAME, "StateSubMenu", "Edit State");
+            addMenuItem("StateSubMenu", "Enable          (Ctrl+E)", COMMAND_ENABLE_SELECTION);
+            addMenuItem("StateSubMenu", "Disable         (Ctrl+D)", COMMAND_DISABLE_SELECTION);
+        }
+
+        if ((enabledControls & CONECT_ITEMS) != 0) {
+            addSubmenu(ITEM_MENU_NAME, "LinkMenu", "Link As");
+            addMenuItem("LinkMenu", "SERIE", COMMAND_LINK_SHAPES);
+            addMenuItem("LinkMenu", "LOOP", COMMAND_LOOP_LINK_SHAPES);
+            addMenuItem("LinkMenu", "STAR", COMMAND_STAR_LINK_SHAPES);
+            
+            addMenuItem(ITEM_MENU_NAME, "Unlink", COMMAND_UNLINK_SHAPES);
+        }
+
+        if ((enabledControls & DELETE_ITEMS) != 0) {
+            addMenuItem(ITEM_MENU_NAME, "Delete", COMMAND_DELETE_SHAPES);
+        }
+
+        if ((enabledControls & GROUP_ITEMS) != 0) {
+            addMenuItem(ITEM_MENU_NAME, "Fix Group", COMMAND_FIX_GROUP);
+        }
+
+        addMenuItem(ITEM_MENU_NAME, "Take Screenshot", COMMAND_TAKE_SCREENSHOT);
 
         // enable click's events listeners
         enableMenu(ITEM_MENU_NAME);
@@ -247,14 +261,27 @@ public class Displayer extends DShape implements DElement {
         return getMenu(ITEM_MENU_NAME);
     }
 
-    protected PopupMenu makeLinksMenu() {
+    private PopupMenu makeLinksMenu(int enabledControls) {
 
         makeMenu(LINK_MENU_NAME);
 
-        addMenuItem(LINK_MENU_NAME, "Customize", COMMAND_CUSTOMIZE_LINK);
-        addMenuItem(LINK_MENU_NAME, "Rename", COMMAND_RENAME_LINK);
-        addMenuItem(LINK_MENU_NAME, "Invert", COMMAND_INVERT_LINK);
-        addMenuItem(LINK_MENU_NAME, "Delete", COMMAND_DELETE_LINK);
+        if ((enabledControls & CUSTOMIZE_ITEMS) != 0) {
+            addMenuItem(LINK_MENU_NAME, "Customize", COMMAND_CUSTOMIZE_LINK);
+        }
+
+        if ((enabledControls & EDIT_ITEMS) != 0) {
+            addMenuItem(LINK_MENU_NAME, "Rename", COMMAND_RENAME_LINK);
+        }
+
+        if ((enabledControls & CONFIG_ITEMS) != 0) {
+            addMenuItem(LINK_MENU_NAME, "Invert", COMMAND_INVERT_LINK);
+        }
+
+        if ((enabledControls & CONECT_ITEMS) != 0) {
+            addMenuItem(LINK_MENU_NAME, "Delete", COMMAND_DELETE_LINK);
+        }
+
+        addMenuItem(LINK_MENU_NAME, "Take Screenshot", COMMAND_TAKE_SCREENSHOT);
 
         // enable click's events listeners
         enableMenu(LINK_MENU_NAME);
@@ -287,8 +314,29 @@ public class Displayer extends DShape implements DElement {
     }
 
     // shape's management
-    protected DShape addShape(DShape shape) {
+    protected DNode addTextNode(String text) {
+        return addTextNode(text, 0.5, 0.5);
+    }
+
+    private DNode addTextNode(String text, double x, double y) {
+        // create a new node containing text
+        DNode node = new DNode(text);
+
+        // define it styles
+        node.setSelectedStyle(shapeStyles.get(0));
+        node.setDisableStyle(shapeStyles.get(1));
+        node.setEnableStyle(shapeStyles.get(2));
+
+        // compute position
+        node.setRelativeCenter(x / width, y / height);
+        node.setRelativeSpace(0, 0, width, height);
         
+        addShape(node);
+        return node;
+    }
+
+    protected DShape addShape(DShape shape) {
+
         if (shapes.indexOf(shape) == -1) {
             shape.setParentItem(this);
 
@@ -300,11 +348,12 @@ public class Displayer extends DShape implements DElement {
             // store on graph shape elements list
             shapes.add(shape);
             super.addItem(shape);
-
+            
+            update();
         } else {
             System.err.println("Duplicated Element " + shape);
         }
-        
+
         return shape;
     }
 
@@ -319,15 +368,17 @@ public class Displayer extends DShape implements DElement {
         return shape;
     }
 
-    protected DShape getShapeByText(String text) {
+    protected List<DShape> getShapeByText(String text) {
+        List<DShape> matches = new ArrayList<>();
 
+        // select any nodes with match text
         for (DShape shape : shapes) {
             if (shape.getText().equals(text)) {
-                return shape;
+                matches.add(shape);
             }
         }
 
-        return null;
+        return matches;
     }
 
     protected DShape selectShape(DShape shape) {
@@ -480,6 +531,7 @@ public class Displayer extends DShape implements DElement {
         // make a new conector
         link = new DConector(shapeA, shapeB, shapeA.getText() + "-" + shapeB.getText());
 
+        // set conector state styles
         link.setDisableStyle(disableConectorStyle.duplicate()).setPathType(conectorType);
         link.setEnableStyle(enableConectorStyle.duplicate()).setPathType(conectorType);
         link.setSelectedStyle(selectedConectorStyle.duplicate()).setPathType(conectorType);
@@ -609,15 +661,15 @@ public class Displayer extends DShape implements DElement {
         updateConectorsState();
 
     }
-    
-    protected ArrayList<ShapePainter.Style> getShapeStyles(){
+
+    protected ArrayList<ShapePainter.Style> getShapeStyles() {
         return this.shapeStyles;
     }
-    
-    protected ArrayList<ConectorPainter.Style> getConectorStyles(){
+
+    protected ArrayList<ConectorPainter.Style> getConectorStyles() {
         return this.conectorStyles;
     }
-    
+
     // items's selection methods
     private void selectAll() {
         shapes.forEach(shape -> selectShape(shape, globalGroup.getShapes(), false));
@@ -815,10 +867,10 @@ public class Displayer extends DShape implements DElement {
     private void selectShapeStyle(ArrayList<DShape> selectedShapes, boolean lastOnly) {
 
         ShapePainter.Style style;
-        
+
         // update selection list
         selectionShapeStyleDialog.updateListElements(this::parseName, 1);
-        
+
         // show selection style dialog
         if (lastOnly) {
             // select by default a current shape style
@@ -829,13 +881,13 @@ public class Displayer extends DShape implements DElement {
 
         } else {
             selectionShapeStyleDialog.showDialog(-1);
-            
+
         }
-        
+
         // change style
         if (selectionShapeStyleDialog.hasSelectedItem()) {
             style = selectionShapeStyleDialog.getSelectedItem();
-            
+
             selectedShapes.forEach((s) -> {
                 if (s.isEnable()) {
                     s.setEnableStyle(style);
@@ -843,7 +895,7 @@ public class Displayer extends DShape implements DElement {
                     s.setDisableStyle(style);
                 }
             });
-            
+
         }
     }
 
@@ -914,7 +966,7 @@ public class Displayer extends DShape implements DElement {
 
                 origin = destiny;
             }
-
+            
             // complete loop
             if (fullLoop) {
                 conectShapes(origin, selectedShapes.get(0), pathType);
@@ -928,8 +980,9 @@ public class Displayer extends DShape implements DElement {
             for (int i = 1; i < selectedShapes.size(); i++) {
                 origin = selectedShapes.get(i);
                 conectShapes(origin, destiny, pathType);
+                
             }
-
+            
         }
 
         updateConectorsState();
@@ -1045,7 +1098,10 @@ public class Displayer extends DShape implements DElement {
         pointedGroup = getLastGroupPointedBy(e.getPoint(), groups);
 
         if (e.getButton() == MouseEvent.BUTTON3) {
-
+            
+            // get last mouse coordinates
+            lastPoint.setLocation(e.getX(),e.getY());
+            
             // select last pointed conector
             pointedConector = getLastConectorPointedBy(e.getPoint(), conectors);
 
@@ -1083,61 +1139,65 @@ public class Displayer extends DShape implements DElement {
                     selectedGroup = globalGroup;
 
                     showMenu(GLOBAL_MENU_NAME, e.getPoint());
-
+                    System.out.println("Show global");
                 }
 
             }
 
         } else {
 
-            // use default selection group
-            if (pointedGroup == null) {
-                pointedGroup = globalGroup;
-            }
+            // select pointed shape
+            if ((enabledControlsFlag & SELECT_ITEMS) != 0) {
 
-            if (pointedShape != null) {
-
-                // select or deselect pointed shape
-                if (pointedShape.isSelected()) {
-                    disposeShape(pointedShape, pointedGroup.getShapes(), false);
-                } else {
-                    selectShape(pointedShape, pointedGroup.getShapes(), false);
-                }
-
-                // update state of group
-                if (pointedGroup.isEmpty()) {
-                    removeShapeGroup(pointedGroup);
+                // use default selection group
+                if (pointedGroup == null) {
                     pointedGroup = globalGroup;
-                } else {
-                    pointedGroup.select();
                 }
 
-            } else {
+                if (pointedShape != null) {
 
-                if (pointedGroup == globalGroup) {
-                    // deselect all groups
-                    disposeAll();
+                    // select or deselect pointed shape
+                    if (pointedShape.isSelected()) {
+                        disposeShape(pointedShape, pointedGroup.getShapes(), false);
+                    } else {
+                        selectShape(pointedShape, pointedGroup.getShapes(), false);
+                    }
 
-                    // define a new mouse state
-                    mouseState = NO_SELECTED_GROUP;
-
-                } else {
-
-                    // update pointed group state
-                    if (pointedGroup.isEnable()) {
-                        pointedGroup.dispose();
+                    // update state of group
+                    if (pointedGroup.isEmpty()) {
+                        removeShapeGroup(pointedGroup);
                         pointedGroup = globalGroup;
                     } else {
                         pointedGroup.select();
                     }
 
-                    // define a new mouse state
-                    mouseState = SELECTED_GROUP;
+                } else {
+
+                    if (pointedGroup == globalGroup) {
+                        // deselect all groups
+                        disposeAll();
+
+                        // define a new mouse state
+                        mouseState = NO_SELECTED_GROUP;
+
+                    } else {
+
+                        // update pointed group state
+                        if (pointedGroup.isEnable()) {
+                            pointedGroup.dispose();
+                            pointedGroup = globalGroup;
+                        } else {
+                            pointedGroup.select();
+                        }
+
+                        // define a new mouse state
+                        mouseState = SELECTED_GROUP;
+                    }
+
                 }
 
+                selectedGroup = pointedGroup;
             }
-
-            selectedGroup = pointedGroup;
         }
 
         // repaint updated UI
@@ -1150,6 +1210,7 @@ public class Displayer extends DShape implements DElement {
     public void onMouseDragged(MouseEvent e, boolean started) {
 
         int dx, dy;
+        boolean canMove, canSelect;
 
         Point currentPoint = e.getPoint();
         Rectangle bounds = getBounds();
@@ -1185,8 +1246,10 @@ public class Displayer extends DShape implements DElement {
 
             // select last pointed item
             pointedShape = getLastShapePointedBy(currentPoint, shapes);
-
-            if (pointedShape != null) {
+            canMove = (enabledControlsFlag & MOVE_ITEMS) != 0;
+            canSelect = (enabledControlsFlag & SELECT_ITEMS) != 0;
+            
+            if (pointedShape != null & canMove) {
 
                 if (!pointedShape.isSelected()) {
                     // drag only a pointed item
@@ -1218,7 +1281,7 @@ public class Displayer extends DShape implements DElement {
                 // select last pointed group
                 pointedGroup = getLastGroupPointedBy(currentPoint, groups);
 
-                if (pointedGroup != null) {
+                if (pointedGroup != null && canMove) {
 
                     // drag last pointed group
                     mouseState = DRAGGING_GROUP;
@@ -1226,15 +1289,16 @@ public class Displayer extends DShape implements DElement {
                     selectedGroup.select();
 
                 } else {
+                    if (canSelect) {
 
-                    // make a new shape group
-                    selectedGroup = addShapeGroup(new DShapeGroup());
-                    mouseState = MAKING_GROUP;
+                        // make a new shape group
+                        selectedGroup = addShapeGroup(new DShapeGroup());
+                        mouseState = MAKING_GROUP;
 
-                    // define initial corner position of group geometry
-                    initialPoint.setLocation(currentPoint);
-                    updateSelectorGroup(selectedGroup, currentPoint, lastPoint);
-
+                        // define initial corner position of group geometry
+                        initialPoint.setLocation(currentPoint);
+                        updateSelectorGroup(selectedGroup, currentPoint, lastPoint);
+                    }
                 }
 
             }
@@ -1433,7 +1497,11 @@ public class Displayer extends DShape implements DElement {
             case COMMAND_SELECT_ALL_SHAPES:
                 selectAll();
                 break;
-
+            
+            case COMMAND_ADD_SHAPE:
+                addTextNode(shapes.size()+"", lastPoint.getX(), lastPoint.getY());
+                break;
+                
             case COMMAND_RENAME_SHAPE:
                 editShapeText(pointedShape);
                 break;
@@ -1459,11 +1527,11 @@ public class Displayer extends DShape implements DElement {
                 break;
 
             case COMMAND_LOOP_LINK_SHAPES:
-                conectShapes(selectedGroup.getShapes(), true, false, ConectorPainter.Style.LINE);
+                conectShapes(selectedGroup.getShapes(), false, true, ConectorPainter.Style.LINE);
                 break;
 
             case COMMAND_STAR_LINK_SHAPES:
-                conectShapes(selectedGroup.getShapes(), false, true, ConectorPainter.Style.LINE);
+                conectShapes(selectedGroup.getShapes(), true, false, ConectorPainter.Style.LINE);
                 break;
 
             case COMMAND_UNLINK_SHAPES:

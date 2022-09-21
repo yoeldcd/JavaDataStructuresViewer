@@ -1,16 +1,15 @@
 package com.yoeld99apps.axegrl.displayer;
 
 import com.yoeld99apps.axegrl.painters.ConectorPainter;
-import javax.swing.JOptionPane;
 
 public class DBinaryTreeDisplayer extends Displayer {
 
     public String[] values = new String[15];
     public DNode[] nodes;
-
+    
     public DBinaryTreeDisplayer() {
-        super();
-
+        super(SELECT_ITEMS | CUSTOMIZE_ITEMS | CONFIG_ITEMS);
+        
         for (int i = 0; i < values.length; i++) {
             values[i] = "" + i;
         }
@@ -30,7 +29,7 @@ public class DBinaryTreeDisplayer extends Displayer {
             nodes[i].setSelectedStyle(getShapeStyles().get(0));
             nodes[i].setDisableStyle(getShapeStyles().get(1));
             nodes[i].setEnableStyle(getShapeStyles().get(2));
-
+            
             super.addShape(nodes[i]);
         }
 
