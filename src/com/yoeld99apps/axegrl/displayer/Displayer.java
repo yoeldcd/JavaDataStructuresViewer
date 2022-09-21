@@ -8,6 +8,7 @@ import java.awt.Component;
 import java.awt.Graphics2D;
 import java.awt.Image;
 import java.awt.MenuItem;
+import java.awt.MenuShortcut;
 import java.awt.Point;
 import java.awt.PopupMenu;
 import java.awt.Rectangle;
@@ -96,9 +97,6 @@ public class Displayer extends DShape implements DElement {
     private final Point lastPoint;
     private final Point initialPoint;
 
-    private Image[] testImages = new Image[10];
-    private File lastFile = new File("./media");
-
     public Displayer() {
         this(true);
     }
@@ -139,7 +137,7 @@ public class Displayer extends DShape implements DElement {
         selectedShapeStyle = shapeStyles.get(0);
         disableShapeStyle = shapeStyles.get(1);
         enableShapeStyle = shapeStyles.get(2);
-
+        
         disableGroupStyle = new ShapePainter.Style(ShapePainter.Style.GEOMETRY_BOX, null, Color.GRAY, Color.GRAY, ShapePainter.Style.TEXT_OVER);
         enableGroupStyle = new ShapePainter.Style(ShapePainter.Style.GEOMETRY_BOX, null, Color.YELLOW, Color.YELLOW, ShapePainter.Style.TEXT_OVER);
         selectedGroupStyle = new ShapePainter.Style(ShapePainter.Style.GEOMETRY_BOX, Color.WHITE, Color.BLACK, Color.BLACK, ShapePainter.Style.TEXT_OVER);
@@ -149,15 +147,16 @@ public class Displayer extends DShape implements DElement {
         selectedConectorStyle = new ConectorPainter.Style(ConectorPainter.Style.POLYLINE, Color.YELLOW, Color.decode("0x0AAF00"));
 
          if (enableControls) {
+            makeGlobalMenu();
             makeItemsMenu();
             makeLinksMenu();
         }
-
+         
         // make preview nodes
         int v = 0;
         double nx, ny;
 
-        for (int i = 1; i <= 25; i++) {
+        /*for (int i = 1; i <= 25; i++) {
             DNode node = new DNode(i + "");
 
             // make a node matrix
@@ -174,9 +173,9 @@ public class Displayer extends DShape implements DElement {
             node.setRelativeSpace(x, y, width, height);
 
             System.out.println("V: " + v + " X: " + nx + " Y: " + ny);
-
+            
             addShape(node);
-        }
+        }*/
 
         initialize();
     }
@@ -185,30 +184,22 @@ public class Displayer extends DShape implements DElement {
 
         ShapePainter.Style style = null;
 
-        //load test sprites
-        testImages[1] = ShapePainter.Style.loadImageOnPath("./media/PC.jpg");
-        testImages[2] = ShapePainter.Style.loadImageOnPath("./media/robot.gif");
-        testImages[3] = ShapePainter.Style.loadImageOnPath("./media/cloock.gif");
-
         // define default selected Style
-        style = new ShapePainter.Style(ShapePainter.Style.GEOMETRY_FREE, Color.WHITE, Color.decode("0x0000B2"), Color.YELLOW, ShapePainter.Style.TEXT_DOWN);
+        style = new ShapePainter.Style(ShapePainter.Style.GEOMETRY_FREE, Color.WHITE, Color.decode("0x0000B2"), Color.YELLOW, ShapePainter.Style.TEXT_CENTER);
         style.setName("selected");
         style.setBorderSize(1.2);
         shapeStyles.add(style);
         shapeStyleDialog.loockStyle(style);
         
         // define default disable Style
-        style = new ShapePainter.Style(ShapePainter.Style.GEOMETRY_QUAD, Color.WHITE, Color.decode("0x750000"), Color.RED, ShapePainter.Style.TEXT_DOWN);
+        style = new ShapePainter.Style(ShapePainter.Style.GEOMETRY_QUAD, Color.WHITE, Color.decode("0x750000"), Color.RED, ShapePainter.Style.TEXT_CENTER);
         style.setName("disable");
-        style.setImage(testImages[1]);
-        style.setTextAlignement(ShapePainter.Style.TEXT_DOWN);
         shapeStyles.add(style);
         shapeStyleDialog.loockStyle(style);
         
         // define default enable Style
-        style = new ShapePainter.Style(ShapePainter.Style.GEOMETRY_QUAD, Color.WHITE, Color.decode("0x005500"), Color.GREEN, ShapePainter.Style.TEXT_DOWN);
+        style = new ShapePainter.Style(ShapePainter.Style.GEOMETRY_QUAD, Color.WHITE, Color.decode("0x005500"), Color.GREEN, ShapePainter.Style.TEXT_CENTER);
         style.setName("enable");
-        style.setImage(testImages[2]);
         style.setBorderSize(1.2);
         shapeStyles.add(style);
         shapeStyleDialog.loockStyle(style);
@@ -217,15 +208,15 @@ public class Displayer extends DShape implements DElement {
 
     protected PopupMenu makeGlobalMenu() {
         makeMenu(GLOBAL_MENU_NAME);
-
-        addMenuItem(GLOBAL_MENU_NAME, "Select All       \t(Ctrl+A)", COMMAND_SELECT_ALL_SHAPES);
-        addMenuItem(GLOBAL_MENU_NAME, "Edit Shape Styles\t(Ctrl+Q)     ", COMMAND_CUSTOMIZE_SHAPES_STYLES);
-        addMenuItem(GLOBAL_MENU_NAME, "Take Screenshot  \t(Alt+S)", COMMAND_TAKE_SCREENSHOT);
-
+        
+        addMenuItem(GLOBAL_MENU_NAME, "Select All", COMMAND_SELECT_ALL_SHAPES).setShortcut(new MenuShortcut(KeyEvent.VK_A, true));
+        addMenuItem(GLOBAL_MENU_NAME, "Edit Shape Styles", COMMAND_CUSTOMIZE_SHAPES_STYLES).setShortcut(new MenuShortcut(KeyEvent.VK_Q, true));
+        addMenuItem(GLOBAL_MENU_NAME, "Take Screenshot", COMMAND_TAKE_SCREENSHOT).setShortcut(new MenuShortcut(KeyEvent.VK_T, true));
+        
         // enable click's events listeners
         enableMenu(GLOBAL_MENU_NAME);
         enableEvents();
-
+        
         return getMenu(GLOBAL_MENU_NAME);
     }
 
@@ -297,8 +288,8 @@ public class Displayer extends DShape implements DElement {
 
     // shape's management
     protected DShape addShape(DShape shape) {
-
-        if (getShapeByText(shape.getText()) == null) {
+        
+        if (shapes.indexOf(shape) == -1) {
             shape.setParentItem(this);
 
             // compute location on this relative sub-space origin
@@ -310,8 +301,10 @@ public class Displayer extends DShape implements DElement {
             shapes.add(shape);
             super.addItem(shape);
 
+        } else {
+            System.err.println("Duplicated Element " + shape);
         }
-
+        
         return shape;
     }
 
@@ -491,8 +484,6 @@ public class Displayer extends DShape implements DElement {
         link.setEnableStyle(enableConectorStyle.duplicate()).setPathType(conectorType);
         link.setSelectedStyle(selectedConectorStyle.duplicate()).setPathType(conectorType);
 
-        System.out.println("ADDED LINK" + link);
-
         // store and add conector
         super.addItem(link);
         conectors.add(link);
@@ -618,7 +609,15 @@ public class Displayer extends DShape implements DElement {
         updateConectorsState();
 
     }
-
+    
+    protected ArrayList<ShapePainter.Style> getShapeStyles(){
+        return this.shapeStyles;
+    }
+    
+    protected ArrayList<ConectorPainter.Style> getConectorStyles(){
+        return this.conectorStyles;
+    }
+    
     // items's selection methods
     private void selectAll() {
         shapes.forEach(shape -> selectShape(shape, globalGroup.getShapes(), false));

@@ -3,6 +3,7 @@ package com.yoeld99apps.axegrl;
 import com.yoeld99apps.axegrl.utils.ImageDisplayer;
 import com.yoeld99apps.axegrl.components.Item;
 import com.yoeld99apps.axegrl.components.ItemFrame;
+import com.yoeld99apps.axegrl.displayer.DBinaryTreeDisplayer;
 
 import com.yoeld99apps.axegrl.displayer.Displayer;
 import com.yoeld99apps.axegrl.utils.ShapeDisplayer;
@@ -147,6 +148,7 @@ public class Enviroment extends JFrame {
         Enviroment.addMakeableItem(ShapeDisplayer.class, "SHAPE");
         Enviroment.addMakeableItem(ImageDisplayer.class, "IMAGE");
         Enviroment.addMakeableItem(Displayer.class, "GRAPH");
+        Enviroment.addMakeableItem(DBinaryTreeDisplayer.class, "BINARY");
         
         Enviroment e = new Enviroment();
         

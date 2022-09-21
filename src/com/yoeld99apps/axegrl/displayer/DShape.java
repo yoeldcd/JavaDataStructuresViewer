@@ -14,54 +14,56 @@ public abstract class DShape extends ContainerItem implements DElement {
     protected ShapePainter.Style disableStyle;
     protected ShapePainter.Style enableStyle;
     protected ShapePainter.Style selectedStyle;
-    
+
     protected String text;
     protected DShape cotainer;
-    
+
     protected int selectionIndex;
     protected boolean isSelected;
     protected boolean isEnable;
     protected boolean isUpdated;
-    
+    protected boolean isSizeRelative;
+
     private double relativeCenterX;
     private double relativeCenterY;
     private double relativeWidth;
     private double relativeHeight;
-    
+
     public DShape() {
         this(null);
     }
-    
+
     public DShape(String text) {
         super();
 
         this.painter = new ShapePainter();
         this.painter.setComponent(this);
-        
+
         // styles
         this.disableStyle = new ShapePainter.Style();
         this.enableStyle = new ShapePainter.Style();
         this.selectedStyle = new ShapePainter.Style();
         this.painter.setStyle(disableStyle);
-        
+
         this.isSelected = false;
         this.isEnable = false;
         this.isUpdated = false;
-        
+        this.isSizeRelative = false;
+
         this.relativeCenterX = 0;
         this.relativeCenterY = 0;
         this.relativeHeight = 0.1;
         this.relativeWidth = 0.1;
-        
+
         setText(text);
         setBounds(0, 0, 50, 50);
-        
+
     }
 
     public void setText(String text) {
         this.text = text != null ? text : null;
         update();
-        
+
     }
 
     public String getText() {
@@ -69,19 +71,18 @@ public abstract class DShape extends ContainerItem implements DElement {
     }
 
     @Override
-    public String toString(){
-        return isSelected ? text + "[" + selectionIndex + "] "+(isEnable? "E" : "D") : text;
+    public String toString() {
+        return isSelected ? text + "[" + selectionIndex + "] " + (isEnable ? "E" : "D") : text;
     }
-    
-    public void setContainer(DShape container){
+
+    public void setContainer(DShape container) {
         this.cotainer = container;
     }
-    
-    public DShape getContainer(){
+
+    public DShape getContainer() {
         return this.cotainer;
     }
-    
-    
+
     // Style management methoods
     public ShapePainter.Style getDisableStyle() {
         return disableStyle;
@@ -90,18 +91,18 @@ public abstract class DShape extends ContainerItem implements DElement {
     public ShapePainter.Style setDisableStyle(ShapePainter.Style style) {
         if (style != null) {
             this.disableStyle = style;
-            
+
             // update rendered layout style settings
-            if(isSelected){
+            if (isSelected) {
                 preserveStateStyle();
-            } else if(!isEnable){
+            } else if (!isEnable) {
                 painter.setStyle(style);
-            
+
             }
-            
+
             update();
         }
-        
+
         return this.disableStyle;
     }
 
@@ -112,17 +113,17 @@ public abstract class DShape extends ContainerItem implements DElement {
     public ShapePainter.Style setEnableStyle(ShapePainter.Style style) {
         if (style != null) {
             this.enableStyle = style;
-            
+
             // update rendered layout style settings
-            if(isSelected){
+            if (isSelected) {
                 preserveStateStyle();
-            } else if(!isEnable){
+            } else if (isEnable) {
                 painter.setStyle(style);
             }
-            
+
             update();
         }
-        
+
         return this.enableStyle;
     }
 
@@ -133,36 +134,36 @@ public abstract class DShape extends ContainerItem implements DElement {
     public ShapePainter.Style setSelectedStyle(ShapePainter.Style style) {
         if (style != null) {
             this.selectedStyle = style;
-            
+
             // update render style settings
             if (isSelected) {
                 preserveStateStyle();
                 painter.setStyle(style);
                 update();
             }
-            
+
         }
-        
+
         return this.selectedStyle;
     }
-    
-    public void preserveStateStyle(){
-        
+
+    public void preserveStateStyle() {
+
         // preserve geometry
-        if(selectedStyle.getGeometryType() == ShapePainter.Style.GEOMETRY_FREE){
+        if (selectedStyle.getGeometryType() == ShapePainter.Style.GEOMETRY_FREE) {
             selectedStyle.setGeometryType(isEnable ? enableStyle.getGeometryType() : disableStyle.getGeometryType());
         }
-        
+
         // preserve text alignement
-        if(selectedStyle.getTextAlignement() == ShapePainter.Style.TEXT_FREE){
+        if (selectedStyle.getTextAlignement() == ShapePainter.Style.TEXT_FREE) {
             selectedStyle.setTextAlignement(isEnable ? enableStyle.getTextAlignement() : disableStyle.getTextAlignement());
         }
-        
+
         // preserve figure image
         selectedStyle.setImage(isEnable ? enableStyle.getImage() : disableStyle.getImage());
-        
+
     }
-    
+
     //Geometry management methoods
     public void moveTo(int x, int y) {
         super.setLocation(x, y);
@@ -199,8 +200,12 @@ public abstract class DShape extends ContainerItem implements DElement {
         return relativeHeight;
     }
 
+    public void setSizeRelative(boolean isSizeRelative) {
+        this.isSizeRelative = isSizeRelative;
+    }
+
     public boolean isSizeRelative() {
-        return true;
+        return isSizeRelative;
     }
 
     public void computeRelativeCenter(int spaceWidth, int spaceHeight) {
@@ -216,7 +221,7 @@ public abstract class DShape extends ContainerItem implements DElement {
     }
 
     public void computeRelativeSize(int spaceWidth, int spaceHeight) {
-        
+
         // compute relative dimensions
         if (spaceWidth > 0 && spaceHeight > 0) {
             relativeWidth = (double) getWidth() / (double) spaceWidth;
@@ -235,40 +240,37 @@ public abstract class DShape extends ContainerItem implements DElement {
     }
 
     public void setRelativeSpace(int relativeX, int relativeY, int spaceWidth, int spaceHeight) {
-        
+
         int cx, cy, w, h;
-        
+
         if (spaceWidth > 0 && spaceHeight > 0) {
-            
+
             double ratio = spaceWidth / 1000;
-            
+
             // computed last normalized center coords on new space
             cx = (int) (spaceWidth * relativeCenterX) + relativeX;
             cy = (int) (spaceHeight * relativeCenterY) + relativeY;
             
-            if (false && isSizeRelative()) {
-                
+            if (isSizeRelative) {
+
+                // compute relative size
                 w = (int) (spaceWidth * relativeWidth);
                 h = (int) (spaceHeight * relativeHeight);
-                
-                isUpdated = true;
-                super.reshape(cx - w/2, cy - h/2, w, h);
+
+                super.reshape(cx - w / 2, cy - h / 2, w, h);
                 
             } else {
                 w = (int) (width);
                 h = (int) (height);
-                
-                isUpdated = true;
+
                 super.reshape(cx - w / 2, cy - h / 2, w, h);
                 
             }
 
-            
         }
 
     }
 
-    
     // State management methoods
     @Override
     public boolean isPointedBy(Point point) {
@@ -326,9 +328,9 @@ public abstract class DShape extends ContainerItem implements DElement {
     public void select(int selectionIndex) {
         isSelected = true;
         this.selectionIndex = selectionIndex;
-        
+
         preserveStateStyle();
-        
+
         painter.setStyle(selectedStyle);
         update();
     }
@@ -371,14 +373,14 @@ public abstract class DShape extends ContainerItem implements DElement {
     // Item events handlers
     @Override
     public void onPaint(Graphics2D g) {
-        
+
         if (this.isUpdated) {
             painter.prepare(g, toString());
         }
-        
+
         // draw painter
         painter.paint(g);
-        
+
     }
 
     @Override
@@ -390,5 +392,5 @@ public abstract class DShape extends ContainerItem implements DElement {
     public void onMoved(int x, int y) {
         isUpdated = true;
     }
-    
+
 }

@@ -56,7 +56,7 @@ public class DConector extends Item implements DElement {
     }
 
     public void setText(String text) {
-        if (this.text != null ? this.text.compareTo(text) > 0 : text != null) {
+        if (text != null ? this.text.compareTo(text) > 0 : true) {
             this.text = text;
             repaint();
         }

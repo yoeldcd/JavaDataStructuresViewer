@@ -119,8 +119,8 @@ public class ConectorPainter extends ObjectPainter {
         
         // define drawed text bounds
         this.text = text;
-        int textWidth = g.getFontMetrics(style.textFont).stringWidth(text);
-        int textHeight = g.getFontMetrics(style.textFont).getHeight();
+        int textWidth = text != null ? g.getFontMetrics(style.textFont).stringWidth(text) : 0;
+        int textHeight = text != null ? g.getFontMetrics(style.textFont).getHeight() : 0;
         
         double[] segmentA2B = {boundsA.getCenterX(), boundsA.getCenterY(), boundsB.getCenterX(), boundsB.getCenterY()};
         double[] intersA = {segmentA2B[0], segmentA2B[1]};
